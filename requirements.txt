@@ -4,3 +4,4 @@ geopandas
 bokeh
 matplotlib
 shapely
+xlrd
