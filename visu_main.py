@@ -36,13 +36,17 @@ state_to_cities, all_rates, all_cumul = data_prep.data_dict(cities_data, cities_
 
 
 # State map
+print('before state map')
 tab_state_map_ = tab_state_map.map_tab(cities_data, states_epi)
+print('before city map')
 tab_city_map_ = tab_city_map.map_tab(cities_data, cities_epi)
+print('before ts single loc')
 tab_ts_single_loc_ = tab_ts_single_loc.ts_tab(cities_data, cities_epi,states_epi,
                                               state_to_cities, all_rates, all_cumul)
+print('before ts single group')
 tab_ts_single_group_ = tab_ts_single_group.ts_tab(cities_data, cities_epi,states_epi,
                                                   state_to_cities, all_rates, all_cumul)
-
+print('before putting tabs together')
 # Put all the tabs into one application
 tabs = Tabs(tabs = [tab_city_map_,tab_state_map_,tab_ts_single_loc_,tab_ts_single_group_])
 

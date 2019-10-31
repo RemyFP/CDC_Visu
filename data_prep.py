@@ -95,7 +95,7 @@ def data_prep(data_folder):
     # Optimize column types
     states_epi = df_type_optimize(states_epi,category_cols=states_epi.columns,
                                   ignore_cols=['Value'])
-    
+    print('before cities_epi')
     # Set case rates in each city equal to the state numbers
     cities_epi = cities_data.loc[:,['ID','State','City']]
     cities_epi = pd.merge(cities_epi,states_epi,left_on='State',right_on='State',how='left')
@@ -118,23 +118,24 @@ def data_dict(cities_data, cities_epi, states_epi):
         df_s = visu_fn.df_filter(cities_data,cond_cols=[['StateCode','in',[s]]])
         cities_s = np.unique(df_s['City']).tolist()
         state_to_cities.update({s:['State'] + cities_s})
-    
+    print('before all rates in dict')
     ## Get all data in a single dataframe
     states_epi.loc[:,'City'] = 'State'
     keep_cols = ['Date','StateCode','Year','Week','Metric','Age','City','Value']
     all_epi = states_epi[keep_cols].append(cities_epi[keep_cols],ignore_index=True)
     all_epi.sort_values(by=['Year','Week'],inplace=True) # needed to use all_rates dict
     
-    # Get cumulative data
-    rates_cumul = all_epi.loc[:,['Metric','Age','StateCode','City','Date','Value']].copy()
-    rates_cumul.loc[:,'Value'] = rates_cumul.groupby(['Metric','Age','StateCode','City'])['Value'].cumsum()
-    
-    
-    ## Get all rates values in a dictionary
+    # Get all rates values in a dictionary
     all_rates = all_epi.groupby(['Metric','Age','StateCode','City'])[['Date','Value']].\
         apply(lambda x: dict(x.values)).to_dict()
+    print('before cumulative dict')
+    ## Cumulative data
+    rates_cumul = all_epi.loc[:,['Metric','Age','StateCode','City','Date','Value']]
+    rates_cumul.loc[:,'Value'] = rates_cumul.groupby(['Metric','Age','StateCode','City'])['Value'].cumsum()
+    
+    # Get all rates values in a dictionary
     all_cumul = rates_cumul.groupby(['Metric','Age','StateCode','City'])[['Date','Value']].\
         apply(lambda x: dict(x.values)).to_dict()
-    
+    print('after cumulative dict')
     return state_to_cities, all_rates, all_cumul
 ###############################################################################
