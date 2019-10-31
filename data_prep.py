@@ -6,20 +6,7 @@ Prepares data to be used for the flu pandemic visualization
 import os
 import numpy as np
 import pandas as pd
-#import glob
-#import geopandas as gpd
-# import json
-# from bokeh.io import output_notebook, output_file
-# from bokeh.io import show
-# from bokeh.plotting import figure
-# from bokeh.models import GeoJSONDataSource,LinearColorMapper,ColorBar
-# from bokeh.models import ColumnDataSource,FactorRange,Panel
-# from bokeh.palettes import brewer, Category20, Viridis256, Category10
-# from bokeh.models import FixedTicker,NumeralTickFormatter,HoverTool
-# from bokeh.plotting import show as show_inline
-#from bokeh.models.widgets import Tabs#,RadioButtonGroup, Div
-# from bokeh.layouts import column,row, widgetbox,WidgetBox
-#from bokeh.io import curdoc
+import visu_fn
 
 np.set_printoptions(linewidth=130)
 pd.set_option('display.width', 130)
@@ -29,6 +16,40 @@ pd.options.display.float_format = '{:,.8f}'.format
 pd.set_option('precision', -1)
 
 ###############################################################################
+###############################################################################
+def df_type_optimize(df,category_cols=[],downcast_nb=False,ignore_cols=[]):
+    """ category_cols: list of columns to convert into categories
+        downcast_nb: whether to downcast number columns that are not in
+    category_cols
+        ignore_cols: any column that should not be modified
+        Transforms columns of a dataframe into a category if passed as input, 
+    otherwise number columns are downcast
+    """
+#    df = cities_epi.copy()
+    if len(category_cols) > 0:
+        for c in category_cols:
+            if (c in  df.columns) and (c not in ignore_cols):
+                df.loc[:,c] = df[c].astype('category')
+    
+    if downcast_nb:
+        for c in df.columns:
+            if (c not in category_cols) and (c not in ignore_cols):
+                if df[c].dtype == 'int64':
+                    df.loc[:,c] = df[c].apply(pd.to_numeric,downcast='unsigned')
+                elif df[c].dtype == 'float64':
+                    df.loc[:,c] = df[c].apply(pd.to_numeric,downcast='float')
+    
+    return df
+###############################################################################
+# Check dataframe memory usage
+#cities_epi.memory_usage(deep=True).sum()
+## To open csv with specified format for columns
+#dtypes = optimized_gl.drop('date',axis=1).dtypes
+#dtypes_col = dtypes.index
+#dtypes_type = [i.name for i in dtypes.values]
+#column_types = dict(zip(dtypes_col, dtypes_type))
+#read_and_optimized = pd.read_csv('game_logs.csv',dtype=column_types,parse_dates=['date'],infer_datetime_format=True)
+#read_and_optimized_xl = pd.read_excel('game_logs.csv',dtype=column_types,parse_dates=['date'])
 ###############################################################################
 def data_prep(data_folder):
 #    folder = 'C:\\Users\\remyp\\Research\\CDC Flu Pandemic\\Visualization\\Data'
@@ -71,13 +92,49 @@ def data_prep(data_folder):
     # Add state abbreviations
     states_epi = pd.merge(states_epi,state_map,left_on='State',
                           right_on='State',how='left')
+    # Optimize column types
+    states_epi = df_type_optimize(states_epi,category_cols=states_epi.columns,
+                                  ignore_cols=['Value'])
     
     # Set case rates in each city equal to the state numbers
     cities_epi = cities_data.loc[:,['ID','State','City']]
     cities_epi = pd.merge(cities_epi,states_epi,left_on='State',right_on='State',how='left')
+    
+    # Optimize column types
+    cities_epi = df_type_optimize(cities_epi,category_cols=cities_epi.columns,
+                                  ignore_cols=['Value'])
+    
     
     # Replace NAs by zero
     cities_epi.fillna({'Value':0},inplace=True)
     states_epi.fillna({'Value':0},inplace=True)
     
     return cities_data, cities_epi, states_epi
+###############################################################################
+def data_dict(cities_data, cities_epi, states_epi):
+    ### Get list of cities per state
+    state_to_cities = {}
+    for s in np.unique(cities_data['StateCode']):
+        df_s = visu_fn.df_filter(cities_data,cond_cols=[['StateCode','in',[s]]])
+        cities_s = np.unique(df_s['City']).tolist()
+        state_to_cities.update({s:['State'] + cities_s})
+    
+    ## Get all data in a single dataframe
+    states_epi.loc[:,'City'] = 'State'
+    keep_cols = ['Date','StateCode','Year','Week','Metric','Age','City','Value']
+    all_epi = states_epi[keep_cols].append(cities_epi[keep_cols],ignore_index=True)
+    all_epi.sort_values(by=['Year','Week'],inplace=True) # needed to use all_rates dict
+    
+    # Get cumulative data
+    rates_cumul = all_epi.loc[:,['Metric','Age','StateCode','City','Date','Value']].copy()
+    rates_cumul.loc[:,'Value'] = rates_cumul.groupby(['Metric','Age','StateCode','City'])['Value'].cumsum()
+    
+    
+    ## Get all rates values in a dictionary
+    all_rates = all_epi.groupby(['Metric','Age','StateCode','City'])[['Date','Value']].\
+        apply(lambda x: dict(x.values)).to_dict()
+    all_cumul = rates_cumul.groupby(['Metric','Age','StateCode','City'])[['Date','Value']].\
+        apply(lambda x: dict(x.values)).to_dict()
+    
+    return state_to_cities, all_rates, all_cumul
+###############################################################################

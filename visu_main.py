@@ -21,7 +21,7 @@ from bokeh.io import curdoc
 #folder = os.sep.join(folder_path)
 #os.chdir(folder)
 import data_prep
-import visu_fn
+#import visu_fn
 import tab_city_map
 import tab_state_map
 import tab_ts_single_loc
@@ -32,12 +32,16 @@ import tab_ts_single_group
 # Get data
 data_folder = os.sep.join([os.getcwd(),'Data'])
 cities_data, cities_epi, states_epi = data_prep.data_prep(data_folder)
+state_to_cities, all_rates, all_cumul = data_prep.data_dict(cities_data, cities_epi, states_epi)
+
 
 # State map
 tab_state_map_ = tab_state_map.map_tab(cities_data, states_epi)
 tab_city_map_ = tab_city_map.map_tab(cities_data, cities_epi)
-tab_ts_single_loc_ = tab_ts_single_loc.ts_tab(cities_data, cities_epi,states_epi)
-tab_ts_single_group_ = tab_ts_single_group.ts_tab(cities_data, cities_epi,states_epi)
+tab_ts_single_loc_ = tab_ts_single_loc.ts_tab(cities_data, cities_epi,states_epi,
+                                              state_to_cities, all_rates, all_cumul)
+tab_ts_single_group_ = tab_ts_single_group.ts_tab(cities_data, cities_epi,states_epi,
+                                                  state_to_cities, all_rates, all_cumul)
 
 # Put all the tabs into one application
 tabs = Tabs(tabs = [tab_city_map_,tab_state_map_,tab_ts_single_loc_,tab_ts_single_group_])

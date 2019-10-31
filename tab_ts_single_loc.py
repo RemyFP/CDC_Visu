@@ -25,7 +25,7 @@ from functools import partial
 
 ###############################################################################
 ###############################################################################
-def ts_tab(cities_data, cities_epi,states_epi):
+def ts_tab(cities_data, cities_epi,states_epi,state_to_cities, all_rates, all_cumul):
     # Possible metric to show
     metrics_list = np.unique(cities_epi['Metric']).tolist()
     age_groups_list = np.unique(cities_epi['Age']).tolist()
@@ -45,31 +45,6 @@ def ts_tab(cities_data, cities_epi,states_epi):
 #    week_startup = dates_list[0]
     
     
-    ### Get list of cities per state
-    state_to_cities = {}
-    for s in np.unique(cities_data['StateCode']):
-        df_s = visu_fn.df_filter(cities_data,cond_cols=[['StateCode','in',[s]]])
-        cities_s = np.unique(df_s['City']).tolist()
-        state_to_cities.update({s:['State'] + cities_s})
-    
-    ## Get all data in a single dataframe
-    states_epi.loc[:,'City'] = 'State'
-    keep_cols = ['Date','StateCode','Year','Week','Metric','Age','City','Value']
-    all_epi = states_epi[keep_cols].append(cities_epi[keep_cols],ignore_index=True)
-    all_epi.sort_values(by=['Year','Week'],inplace=True) # needed to use all_rates dict
-    
-    # Get cumulative data
-    rates_cumul = all_epi.loc[:,['Metric','Age','StateCode','City','Date','Value']].copy()
-    rates_cumul.loc[:,'Value'] = rates_cumul.groupby(['Metric','Age','StateCode','City'])['Value'].cumsum()
-######### no need to copy the dataframe, just create a new column, same for other tab #######################################################################
-    ### get the data once and use it in both tabs
-    ## Get all rates values in a dictionary
-    all_rates = all_epi.groupby(['Metric','Age','StateCode','City'])[['Date','Value']].\
-        apply(lambda x: dict(x.values)).to_dict()
-    all_cumul = rates_cumul.groupby(['Metric','Age','StateCode','City'])[['Date','Value']].\
-        apply(lambda x: dict(x.values)).to_dict()
-
-
     ## Get lists of possible selections
     state_list = list(state_to_cities.keys())
     cities_list = state_to_cities[state_startup]
