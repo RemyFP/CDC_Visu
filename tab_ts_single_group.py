@@ -14,6 +14,7 @@ from bokeh.models import HoverTool#,NumeralTickFormatter#,HoverTool#,FixedTicker
 # from bokeh.plotting import show as show_inline
 from bokeh.models.widgets import RadioButtonGroup, Div, RadioGroup, CheckboxGroup
 from bokeh.layouts import column,WidgetBox,row#,widgetbox
+from bokeh.models.tickers import FixedTicker
 #import matplotlib as plt
 #import matplotlib.cm as cm
 # itertools handles the cycling
@@ -22,10 +23,11 @@ from bokeh.palettes import Category20#,brewer, Category10, Viridis256
 #from bokeh.models import FixedTicker#,HoverTool#,NumeralTickFormatter
 #from bokeh.io import curdoc
 from datetime import datetime as dt
+import datetime
 
 ###############################################################################
 ###############################################################################
-def ts_tab(cities_data, cities_epi,states_epi,state_to_cities, all_rates, all_cumul):
+def ts_tab(cities_data, cities_epi,states_epi,state_to_cities):#, all_rates, all_cumul):
     # Possible metric to show
     metrics_list = np.unique(cities_epi['Metric']).tolist()
     age_groups_list = np.unique(cities_epi['Age']).tolist()
@@ -47,6 +49,7 @@ def ts_tab(cities_data, cities_epi,states_epi,state_to_cities, all_rates, all_cu
     to_display = [[city_startup,state_startup]]
     selected = [city_startup + ' - ' + state_startup]
 #    selected_id = [[x[:-4],x[-2:]] for x in selected]
+    display_dict = {'Weekly':'Value','Cumulative':'CumulValue'}
     
     
     ## Get lists of possible selections
@@ -55,12 +58,20 @@ def ts_tab(cities_data, cities_epi,states_epi,state_to_cities, all_rates, all_cu
     
     
     ## Data to start
-    if display_startup == 'Weekly':
-        data_dict = all_rates
-    elif display_startup == 'Cumulative':
-        data_dict = all_cumul
-    y_startup = [list(data_dict[(metric_startup,age_group_startup,
-                                 to_display[0][1],to_display[0][0])].values())]
+#    if display_startup == 'Weekly':
+#        data_dict = all_rates
+#    elif display_startup == 'Cumulative':
+#        data_dict = all_cumul
+#    y_startup = [list(data_dict[(metric_startup,age_group_startup,
+#                                 to_display[0][1],to_display[0][0])].values())]
+
+    y_startup = [visu_fn.select_data(states_epi,cities_epi,to_display[0][0],
+                             state=to_display[0][1],metric=metric_startup,
+                             age=age_group_startup).\
+                             loc[:,display_dict[display_startup]].tolist()]
+    
+    
+    
     
     ## Dates to display
     dates_ = [dt.strptime(' '.join(map(str,visu_fn.date_to_year_week(x))) + ' 1',\
@@ -108,6 +119,16 @@ def ts_tab(cities_data, cities_epi,states_epi,state_to_cities, all_rates, all_cu
     else:
         y_axis_format = '0.0'
     p_ts.yaxis.formatter=NumeralTickFormatter(format=y_axis_format)
+    
+    # X axis ticks
+    epoch = dt.utcfromtimestamp(0)
+    min_date = [dates_[0].month,dates_[0].year]
+    max_date = [dates_[-1].month,dates_[-1].year]
+#    ticks=[(dates_[i]-epoch).total_seconds() * 1000.0 for i in range(0,len(dates_),5)]
+    ticks = [(datetime.datetime(m//12, m%12+1, 1)-epoch).total_seconds() * 1000.0 \
+             for m in range(min_date[1]*12+min_date[0]-1, max_date[1]*12+max_date[0])]
+    p_ts.xaxis.ticker = FixedTicker(ticks=ticks)
+    p_ts.xgrid.ticker = FixedTicker(ticks=ticks)
     
     ## Define interaction controllers
     displays_list = ['Weekly','Cumulative']
@@ -188,17 +209,24 @@ def ts_tab(cities_data, cities_epi,states_epi,state_to_cities, all_rates, all_cu
         selected = list(selected_button.labels)
         
         # Update display data
-        if new_display == 'Weekly':
-            data_dict = all_rates
-        elif new_display == 'Cumulative':
-            data_dict = all_cumul
+#        if new_display == 'Weekly':
+#            data_dict = all_rates
+#        elif new_display == 'Cumulative':
+#            data_dict = all_cumul
             
         # Pairs containing city and state
         selected_id = [[x[:-5],x[-2:]] for x in selected]
         
         if len(selected_id) > 0:
-            new_y = [list(data_dict[(new_metric,new_age_group,x[1],x[0])].values())
-                 for x in selected_id]
+#            new_y = [list(data_dict[(new_metric,new_age_group,x[1],x[0])].values())
+#                 for x in selected_id]
+            
+            new_y = [visu_fn.select_data(states_epi,cities_epi,x[0],
+                         state=x[1],metric=new_metric,
+                         age=new_age_group).\
+                         loc[:,display_dict[new_display]].tolist()
+                         for x in selected_id]
+            
             x_dates = [dates_ for i in range(len(new_y))]
             min_y,max_y = [0],[np.max(new_y)]
             
@@ -286,11 +314,13 @@ def ts_tab(cities_data, cities_epi,states_epi,state_to_cities, all_rates, all_cu
 ## Get data
 #data_folder = os.sep.join([os.getcwd(),'Data'])
 #cities_data, cities_epi, states_epi = data_prep.data_prep(data_folder)
+#state_to_cities = data_prep.data_dict(cities_data, cities_epi, states_epi)
 #
 ## State map
 ##tab_state_map_ = tab_state_map.map_tab(cities_data, states_epi)
 ##tab_city_map_ = tab_city_map.map_tab(cities_data, cities_epi)
-#tab_ts_ = ts_tab(cities_data, cities_epi,states_epi)
+##tab_ts_ = ts_tab(cities_data, cities_epi,states_epi)
+#tab_ts_ = ts_tab(cities_data, cities_epi,states_epi,state_to_cities)
 #
 ## Put all the tabs into one application
 #tabs = Tabs(tabs = [tab_ts_])

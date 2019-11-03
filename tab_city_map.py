@@ -51,15 +51,24 @@ def map_tab(cities_data, cities_epi):#, states_epi):
     
     ## Get corrected city coordinates
     cities_data = visu_fn.adjust_city_coords(cities_data)
-    cities_epi.sort_values(by=['ID'],inplace=True) # needed to use all_rates dict
+#    cities_epi.sort_values(by=['ID'],inplace=True) # needed to use all_rates dict
     
-    ## Get all rates values in a dictionary
-    all_rates = cities_epi.groupby(['Metric','Age','Date'])[['ID','Value']].\
-        apply(lambda x: dict(x.values)).to_dict()
+    
+    # Select data to display for cities on startup
+    startup_rates_id = visu_fn.df_filter(cities_epi,
+                          cond_cols=[['Date','in',[week_startup]],
+                                     ['Age','in',[age_group_startup]],
+                                     ['Metric','in',[metric_startup]]]).loc[:,\
+                                        ['StateCode','City','Value']]
+    startup_rates = startup_rates_id['Value'].tolist()
 
     
+    ## Get all rates values in a dictionary
+#    all_rates = cities_epi.groupby(['Metric','Age','Date'])[['ID','Value']].\
+#        apply(lambda x: dict(x.values)).to_dict()
+    
     ## Cities list and coordinates
-    cities_id = list(all_rates[(metric_startup, age_group_startup, week_startup)].keys())
+    cities_id = startup_rates_id.apply(lambda x: x['StateCode'] + '|' + x['City'],axis=1).tolist()
     city_xs = [cities_data.loc[cities_data['ID'] == x,'Longitude'].values[0] \
                for x in cities_id]
     city_ys = [cities_data.loc[cities_data['ID'] == x,'Latitude'].values[0] \
@@ -69,8 +78,7 @@ def map_tab(cities_data, cities_epi):#, states_epi):
     city_states = [cities_data.loc[cities_data['ID'] == x,'State'].values[0] \
                for x in cities_id]
     
-    # Select data to display for cities on startup
-    startup_rates = list(all_rates[(metric_startup, age_group_startup, week_startup)].values())
+    
     
 
     ## Create bokeh map source data
@@ -88,6 +96,7 @@ def map_tab(cities_data, cities_epi):#, states_epi):
                                                      City=city_names,
                                                      Rate=startup_rates))
     
+
     ## Map formatting 
     low_val = 0 # for color bar in legend
     
@@ -102,7 +111,7 @@ def map_tab(cities_data, cities_epi):#, states_epi):
         else:
             m_format = NumeralTickFormatter(format="0.0")
         metrics_format.update({m:m_format})
-        
+    
         
     colormap = cm.get_cmap('OrRd') #choose any matplotlib colormap here
     bokehpalette = [plt.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
@@ -176,7 +185,12 @@ def map_tab(cities_data, cities_epi):#, states_epi):
         div_bar.text = new_text_bar
 
         # Displayed data
-        new_rates = list(all_rates[(new_metric, new_age_group, new_week)].values())
+#        new_rates = list(all_rates[(new_metric, new_age_group, new_week)].values())
+        new_rates = visu_fn.df_filter(cities_epi,
+                      cond_cols=[['Date','in',[new_week]],
+                                 ['Age','in',[new_age_group]],
+                                 ['Metric','in',[new_metric]]]).\
+                                    loc[:,'Value'].tolist()
     
         # Patch source data with new rates and update legend
         col_source_cities.patch({'Rate': [(slice(len(new_rates)), new_rates)]})
@@ -204,3 +218,39 @@ def map_tab(cities_data, cities_epi):#, states_epi):
     tab = Panel(child=layout, title = 'City Map')
     return tab
 ###############################################################################
+
+
+## -*- coding: utf-8 -*-
+#import os
+#from bokeh.models.widgets import Tabs
+#from bokeh.io import curdoc
+#
+##folder_path = ['C:','Users','remyp','Research','CDC Flu Pandemic','Visualization','Data']
+##folder = os.sep.join(folder_path)
+##os.chdir(folder)
+#import data_prep
+##import visu_fn
+##import tab_city_map
+##import tab_state_map
+##import tab_ts_single_loc
+##import tab_ts_single_group
+#
+#
+#### Inputs
+## Get data
+#data_folder = os.sep.join([os.getcwd(),'Data'])
+#cities_data, cities_epi, states_epi = data_prep.data_prep(data_folder)
+#state_to_cities = data_prep.data_dict(cities_data, cities_epi, states_epi)
+#
+#
+## State map
+#print('before state map')
+#tab_city_map_ = map_tab(cities_data, cities_epi)
+#print('before putting tabs together')
+## Put all the tabs into one application
+#tabs = Tabs(tabs = [tab_city_map_])
+#
+## Put the tabs in the current document for display
+#curdoc().add_root(tabs)
+#curdoc().title = 'Influenza Pandemic Simulation'
+#

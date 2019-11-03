@@ -20,18 +20,26 @@ def df_filter(df,cond_cols=[]):
         Returns a copy of the original dataframe on which we applied the 
     filters passed.
     """
-    df_out = df.copy()
+    #df_out = df.copy()
+#    df_out = df.copy()
     
     # Loop through conditions
-    for cond in cond_cols:
+    for i in range(len(cond_cols)):
+        cond = cond_cols[i]
         # Column to filter on, and values to match or not match
         col = cond[0]
         vals = cond[2]
         
         if cond[1] == 'in':
-            df_out = df_out.loc[df_out[col].isin(vals),:]
+            if i == 0:
+                df_out = df.loc[df[col].isin(vals),:]
+            else:
+                df_out = df_out.loc[df_out[col].isin(vals),:]
         elif cond[1] == 'notin':
-            df_out = df_out.loc[~df_out[col].isin(vals),:]
+            if i == 0:
+                df_out = df.loc[~df[col].isin(vals),:]
+            else:
+                df_out = df_out.loc[~df_out[col].isin(vals),:]
     
     return df_out
 ###############################################################################
@@ -132,4 +140,38 @@ def set_stype(figure,  xlabel="", ylabel=""):
     
     figure.title.text_font = "times"
     figure.title.text_font_style = "bold"
+###############################################################################
+def select_data(states_epi,cities_epi,city,state=None,metric=None,
+                age=None,date=None):
+    """ states_epi: states epidemilogical data
+        cities_epi: cities epidemilogical data
+        city: city we filter data for. If the value is State then we fetch
+    data in states_epi, otherwise in cities_epi
+        state: state to filter for
+        metric: metric to filter for
+        age: age groups to filter for
+    """
+    # Get conditions to filter on
+    cond_cols = []
+    
+    if date is not None:
+        cond_cols.append(['Date','in',[date]])
+    
+    if state is not None:
+        cond_cols.append(['StateCode','in',[state]])
+    
+    if metric is not None:
+        cond_cols.append(['Metric','in',[metric]])
+    
+    if age is not None:
+        cond_cols.append(['Age','in',[age]])
+    
+    if city == 'State':
+        df = states_epi
+    else:
+        df = cities_epi
+        cond_cols.append(['City','in',[city]])
+    
+    df_out = df_filter(df,cond_cols=cond_cols)
+    return df_out
 ###############################################################################

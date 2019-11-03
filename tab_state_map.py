@@ -35,13 +35,23 @@ def map_tab(cities_data, states_epi):
     week_startup = dates_list[0]
     
     # Remove entire network from dataset
-    states_epi.sort_values(by=['State'],inplace=True)
-    states_epi_ = states_epi.loc[states_epi['State'] != 'Entire Network',:]
+#    states_epi.sort_values(by=['State'],inplace=True)
+#    states_epi_ = states_epi.loc[states_epi['State'] != 'Entire Network',:]
+#    states_epi = states_epi.loc[states_epi['State'] != 'Entire Network',:]
     
     ## Get all rates values in a dictionary
-    all_rates = states_epi_.groupby(['Metric','Age','Date'])[['StateCode','Value']].\
-        apply(lambda x: dict(x.values)).to_dict()
-    state_codes = list(all_rates[(metric_startup, age_group_startup, week_startup)].keys())
+#    all_rates = states_epi.groupby(['Metric','Age','Date'])[['StateCode','Value']].\
+#        apply(lambda x: dict(x.values)).to_dict()
+    ## Starting values
+    startup_rates_id = visu_fn.df_filter(states_epi,
+                          cond_cols=[['Date','in',[week_startup]],
+                                     ['Age','in',[age_group_startup]],
+                                     ['Metric','in',[metric_startup]]]).loc[:,\
+                                     ['StateCode','Value']]
+    startup_rates = startup_rates_id['Value'].tolist()
+    state_codes = startup_rates_id['StateCode'].tolist()
+#    startup_rates = list(all_rates[(metric_startup, age_group_startup, week_startup)].values())
+#    state_codes = list(all_rates[(metric_startup, age_group_startup, week_startup)].keys())
     
     ### State coordinates
     # Alaska and Hawaii need to be adjusted
@@ -55,7 +65,7 @@ def map_tab(cities_data, states_epi):
                  for code in state_codes]
     state_ys = [states[code]["lats"] if code not in['AK','HI'] else ys_adj[code] \
                 for code in state_codes]
-    startup_rates = list(all_rates[(metric_startup, age_group_startup, week_startup)].values())
+    
     
     # Create bokeh map source data
     col_source = ColumnDataSource(data = dict(xs=state_xs,
@@ -70,7 +80,7 @@ def map_tab(cities_data, states_epi):
     max_vals = {}
     metrics_format = {}
     for m in metrics_list:
-        m_vals = visu_fn.df_filter(states_epi_,cond_cols=[['Metric','in',[m]]])
+        m_vals = visu_fn.df_filter(states_epi,cond_cols=[['Metric','in',[m]]])
         max_vals.update({m:np.percentile(m_vals['Value'],99.9) })
         if max_vals[m] > 10:
             m_format = NumeralTickFormatter(format=",0")
@@ -137,7 +147,12 @@ def map_tab(cities_data, states_epi):
         div_bar.text = new_text_bar
 
         # Displayed data
-        new_rates = list(all_rates[(new_metric, new_age_group, new_week)].values())
+#        new_rates = list(all_rates[(new_metric, new_age_group, new_week)].values())
+        new_rates = visu_fn.df_filter(states_epi,
+                      cond_cols=[['Date','in',[new_week]],
+                                 ['Age','in',[new_age_group]],
+                                 ['Metric','in',[new_metric]]]).\
+                                 loc[:,'Value'].tolist()
     
         # Patch source data with new rates and update legend
         col_source.patch({'Rate': [(slice(len(new_rates)), new_rates)]})
@@ -165,3 +180,38 @@ def map_tab(cities_data, states_epi):
     tab = Panel(child=layout, title = 'State Map')
     return tab
 ###############################################################################
+
+
+# -*- coding: utf-8 -*-
+#import os
+#from bokeh.models.widgets import Tabs
+#from bokeh.io import curdoc
+#
+##folder_path = ['C:','Users','remyp','Research','CDC Flu Pandemic','Visualization','Data']
+##folder = os.sep.join(folder_path)
+##os.chdir(folder)
+#import data_prep
+##import visu_fn
+##import tab_city_map
+##import tab_state_map
+##import tab_ts_single_loc
+##import tab_ts_single_group
+#
+#
+#### Inputs
+## Get data
+#data_folder = os.sep.join([os.getcwd(),'Data'])
+#cities_data, cities_epi, states_epi = data_prep.data_prep(data_folder)
+#state_to_cities = data_prep.data_dict(cities_data,states_epi,states_epi)
+#
+#
+## State map
+#print('before state map')
+#tab_state_map_ = map_tab(cities_data, cities_epi)
+#print('before putting tabs together')
+## Put all the tabs into one application
+#tabs = Tabs(tabs = [tab_state_map_])
+#
+## Put the tabs in the current document for display
+#curdoc().add_root(tabs)
+#curdoc().title = 'Influenza Pandemic Simulation'
